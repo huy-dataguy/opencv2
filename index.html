@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>2D Convolution & Median Filter Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f4f4f4;
+    }
+    h2 { margin-top: 30px; }
+    input, textarea, select, button {
+      margin: 5px 0;
+      padding: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .result {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>2D Convolution & Median Filter</h1>
+
+  <h2>Input Matrix</h2>
+  <textarea id="inputMatrix" rows="5" placeholder="Nhập ma trận (cách nhau bằng dấu cách, xuống dòng để xuống hàng)&#10;VD:&#10;1 2 3&#10;4 5 6&#10;7 8 9"></textarea>
+
+  <h2>Kernel</h2>
+  <textarea id="kernelMatrix" rows="3" placeholder="VD:&#10;1 0&#10;0 -1"></textarea>
+
+  <label>Padding: <input type="number" id="padding" value="0"></label>
+  <label>Stride: <input type="number" id="stride" value="1"></label>
+
+  <button onclick="calculateConvolution()">Tính Convolution</button>
+  <div class="result" id="convResult"></div>
+
+  <h2>Median Filter</h2>
+  <label>Kích thước lân cận (odd number): <input type="number" id="medianSize" value="3"></label>
+  <button onclick="calculateMedian()">Lọc trung vị</button>
+  <div class="result" id="medianResult"></div>
+
+  <script>
+    let lastConvResult = null; // lưu kết quả convolution cuối cùng
+
+    function parseMatrix(text) {
+      return text.trim().split("\n").map(row => row.trim().split(/\s+/).map(Number));
+    }
+
+    function calculateConvolution() {
+      let input = parseMatrix(document.getElementById("inputMatrix").value);
+      let kernel = parseMatrix(document.getElementById("kernelMatrix").value);
+      let padding = parseInt(document.getElementById("padding").value);
+      let stride = parseInt(document.getElementById("stride").value);
+
+      let H = input.length, W = input[0].length;
+      let kH = kernel.length, kW = kernel[0].length;
+
+      let outH = Math.floor((H - kH + 2*padding)/stride) + 1;
+      let outW = Math.floor((W - kW + 2*padding)/stride) + 1;
+
+      let padded = Array.from({length: H + 2*padding}, (_, i) =>
+        Array.from({length: W + 2*padding}, (_, j) => {
+          if(i < padding || j < padding || i >= H + padding || j >= W + padding) return 0;
+          return input[i - padding][j - padding];
+        })
+      );
+
+      let output = [];
+      for (let i = 0; i < outH; i++) {
+        output[i] = [];
+        for (let j = 0; j < outW; j++) {
+          let sum = 0;
+          for (let ki = 0; ki < kH; ki++) {
+            for (let kj = 0; kj < kW; kj++) {
+              sum += padded[i*stride + ki][j*stride + kj] * kernel[ki][kj];
+            }
+          }
+          output[i][j] = sum;
+        }
+      }
+
+      lastConvResult = output; // lưu kết quả convolution
+
+      document.getElementById("convResult").innerHTML = `
+        <b>Kích thước output:</b> ${outH} x ${outW}<br>
+        <b>Output Matrix:</b><br>${output.map(r=>r.join(" ")).join("<br>")}
+      `;
+    }
+
+    function calculateMedian() {
+      if (!lastConvResult) {
+        alert("Hãy tính Convolution trước khi lọc trung vị!");
+        return;
+      }
+
+      let input = lastConvResult;
+      let size = parseInt(document.getElementById("medianSize").value);
+      let pad = Math.floor(size/2);
+      let H = input.length, W = input[0].length;
+
+      let padded = Array.from({length: H + 2*pad}, (_, i) =>
+        Array.from({length: W + 2*pad}, (_, j) => {
+          if(i < pad || j < pad || i >= H + pad || j >= W + pad) return 0;
+          return input[i - pad][j - pad];
+        })
+      );
+
+      let output = [];
+      for (let i = 0; i < H; i++) {
+        output[i] = [];
+        for (let j = 0; j < W; j++) {
+          let neighbors = [];
+          for (let ki = 0; ki < size; ki++) {
+            for (let kj = 0; kj < size; kj++) {
+              neighbors.push(padded[i+ki][j+kj]);
+            }
+          }
+          neighbors.sort((a,b)=>a-b);
+          output[i][j] = neighbors[Math.floor(neighbors.length/2)];
+        }
+      }
+
+      document.getElementById("medianResult").innerHTML = `
+        <b>Median Filter (trên ma trận Convolution):</b><br>${output.map(r=>r.join(" ")).join("<br>")}
+      `;
+    }
+  </script>
+</body>
+</html>
